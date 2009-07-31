@@ -157,7 +157,7 @@ def processSignatureASDecl(sig):
 		entry = entry.strip()
 		# by now we should have the variable name and the type
 		byRef = False
-		print '>>>>', entry
+		#print '>>>>', entry
 		if entry.find('&') != -1:
 			byRef = True
 		entry = entry.replace('&', '')
@@ -170,7 +170,7 @@ def processSignatureASDecl(sig):
 			newentry = '%(vartype)s &in' % {'vartype':vartype}
 		else:
 			newentry = '%(vartype)s' % {'vartype':vartype}
-		print '####', newentry
+		#print '####', newentry
 		new_entries.append(newentry)
 	return '(%s)' % ', '.join(new_entries)
 	
@@ -247,7 +247,7 @@ for entry_type in kinds.keys():
 		elif len(type) > 0 and type[-1] == '@':
 			type = type[:-1]
 			lname = ' @' + lname
-		#result += "//" + line.strip() + "\n"
+		result += "//" + line.strip() + "\n"
 		if not entry.name in behaviormap.keys():
 			# normal function
 			
