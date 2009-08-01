@@ -1,6 +1,52 @@
 import os
 import sys
 
+outfilename = 'output'
+
+template_h = """#ifndef %(header_guard)s
+#define %(header_guard)s
+
+#include "angelscript.h"
+
+%(includefiles)s
+void registerObjects(AngelScript::asIScriptEngine *engine);
+
+#endif //%(header_guard)s
+"""
+
+template_cpp = """#include "output.h"
+
+void registerObjects(AngelScript::asIScriptEngine *engine)
+{
+%(regs)s
+}
+"""
+
+def generateHeader(headerfiles):
+	global outfilename
+	outfile = '%s.h' % outfilename 
+	inclf = []
+	for file in headerfiles:
+		inclf.append('#include "%s"\n'%file.strip())
+	content = template_h % {'header_guard':'AS_INTERFACE_H_', 'includefiles':(''.join(inclf))}
+	f = open(outfile, 'w')
+	f.write(content)
+	f.close()
+	
+def generateCppFile(regs):
+	global outfilename
+	outfile = '%s.cpp' % outfilename
+	# add tabs
+	lines = []
+	for line in regs.split('\n'):
+		lines.append('\t%s\n'%line)
+	regs = ''.join(lines)
+	content = template_cpp % {'regs':regs}	
+	f = open(outfile, 'w')
+	f.write(content)
+	f.close()
+
+
 if len(sys.argv) < 2:
 	print "usage: %s file1.h file2.h ..." % os.path.basename(sys.argv[0])
 	sys.exit(1)
@@ -173,9 +219,9 @@ def processSignatureASDecl(sig):
 		#print '####', newentry
 		new_entries.append(newentry)
 	return '(%s)' % ', '.join(new_entries)
-	
-for entry_type in kinds.keys():
-  result += "//%s\n" % str(entry_type)
+
+def handleKind(entry_type):
+  result=''
   for entry in kinds[entry_type]:
 	line = filecontent[entry.file][entry.line_number-1]
 	
@@ -247,12 +293,12 @@ for entry_type in kinds.keys():
 		elif len(type) > 0 and type[-1] == '@':
 			type = type[:-1]
 			lname = ' @' + lname
-		result += "//" + line.strip() + "\n"
+		#result += "//" + line.strip() + "\n"
 		if not entry.name in behaviormap.keys():
 			# normal function
 			
-			if entry.name == getShortClassName(entry.extensions['class']):
-				result += "// constructor/destructor: "
+			if entry.name == getShortClassName(entry.extensions['class']) or entry.name.find('~') != -1:
+				result += "// constructor/destructor: (FIX MANUALLY!) \n//"
 			
 			type = type.replace('const', '').strip()
 
@@ -261,6 +307,9 @@ for entry_type in kinds.keys():
 				if type[:len(tm)] == tm:
 					type = type.replace(tm, typemap[tm])
 
+			if type.strip() == '':
+				type = 'void '
+				
 			#print '1>>',entry.extensions['signature']
 			as_signature = processSignatureASDecl(entry.extensions['signature'])
 			result += "r = engine->RegisterObjectMethod(\"%(shortclassname)s\", \"%(type)s%(name)s%(signature)s\", asMETHODPR(%(classname)s,%(name)s, %(signature)s, %(type)s), asCALL_THISCALL); assert(r>=0);\n" % \
@@ -299,10 +348,23 @@ for entry_type in kinds.keys():
 	elif entry_type == 'class':
 		lastClass = entry.name
 		result += "r = engine->RegisterObjectType(\"%(classname)s\", sizeof(%(classname)s), asOBJ_REF); assert(r>=0);\n" % {'classname': entry.name}
+  return result
 
-outfile = 'output.txt'
-f = open(outfile, 'w')
-f.write(result)
-f.close()
+	
+# this sorts the result a bit depending on the type
+result = ''
+entry_types = ['class', 'member', 'function', 'prototype']
+for entry_type in entry_types:
+  if entry_type in kinds.keys():
+    res = handleKind(entry_type)
+    if res != '':
+      result += "/// %s\n" % str(entry_type)
+      result += res
 
-print "processed", len(tag_file.tags), "tags. output file", outfile, "written"
+generateHeader(files)
+generateCppFile(result)
+
+
+
+
+print "processed %d tags. output file %s{.cpp,.h} written" % (len(tag_file.tags), outfilename)
