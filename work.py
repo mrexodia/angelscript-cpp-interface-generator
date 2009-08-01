@@ -260,11 +260,10 @@ for entry_type in kinds.keys():
 			for tm in typemap.keys():
 				if type[:len(tm)] == tm:
 					type = type.replace(tm, typemap[tm])
-					
-			
+
 			#print '1>>',entry.extensions['signature']
 			as_signature = processSignatureASDecl(entry.extensions['signature'])
-			result += "r = engine->RegisterObjectMethod(\"%(shortclassname)s\", \"%(type)s%(name)s%(signature)s\", asMETHOD(%(classname)s,%(name)s), asCALL_THISCALL); assert(r>=0);\n" % \
+			result += "r = engine->RegisterObjectMethod(\"%(shortclassname)s\", \"%(type)s%(name)s%(signature)s\", asMETHODPR(%(classname)s,%(name)s, %(signature)s, %(type)s), asCALL_THISCALL); assert(r>=0);\n" % \
 					{
 						'type':type,
 						'classname':entry.extensions['class'], 
@@ -284,14 +283,14 @@ for entry_type in kinds.keys():
 			if type[-1] == '&':
 				type = type[:-1]
 				lname = ' &' + lname.strip()
-			result += "r = engine->RegisterObjectBehaviour(\"%(shortclassname)s\", %(behaviortype)s, \"%(type)s%(name)s%(signature)s\", asMETHOD(%(classname)s,%(name)s), asCALL_THISCALL); assert(r>=0);\n" % \
+			result += "r = engine->RegisterObjectBehaviour(\"%(shortclassname)s\", %(behaviortype)s, \"%(type)s%(name)s%(signature)s\", asMETHODPR(%(classname)s,%(realname)s, %(signature)s, %(type)s), asCALL_THISCALL); assert(r>=0);\n" % \
 					{
 						'behaviortype':behaviortype,
 						'type':type,
 						'classname':entry.extensions['class'], 
 						'shortclassname':getShortClassName(entry.extensions['class']),
 						'name':lname, 
-						'realname':lname, 
+						'realname':entry.name, 
 						'signature':processSignatureASDecl(entry.extensions['signature'])
 					}
 			#result += "\n"
