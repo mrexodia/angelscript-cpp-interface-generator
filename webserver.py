@@ -10,7 +10,7 @@ class GenericOptions:
 
 def uniqueTask():
 	# faked one to prevent existing directories
-	uid = str(random.random()).replace('.', '')
+	uid = str(int(time.time())) + str(random.random()).replace('.', '')
 
 	# create base path
 	for path in ['input', 'output']:
@@ -41,7 +41,7 @@ class worker(threading.Thread):
 		for f in files:
 			nfiles.append(os.path.join(self.ipath, f))
 		files = nfiles
-		print files
+		#print files
 		if asig.generateFromFiles(files) > 0:
 			self.header = asig.generateHeader()
 			self.source = asig.generateCppFile()
