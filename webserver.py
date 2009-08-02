@@ -87,6 +87,8 @@ You can upload the following filetypes that contain the sources:<br/>
 </table>
 
 </form>
+<a href="http://thomasfischer.biz/?p=202">(comments, bug reports and feature requests)</a> <a href="http://thomasfischer.biz/?page_id=2">(contact)</a>
+
 <div style="font-size:x-small;color:#aaaaaa;position:absolute;right:0px;bottom:0px;">(ASIG revision %(rev)s)</div>
 </BODY>
 </HTML>
