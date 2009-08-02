@@ -95,10 +95,10 @@ void registerObjects(AngelScript::asIScriptEngine *engine)
 
 	def __init__(self):
 		# construct ctags executable path
-		if platform.platform() == "Linux":
+		if platform.system() == "Linux":
 			# stupid assumption, fix that if needed:
 			self.ctags_path = '/usr/bin/ctags'
-		elif platform.platform() == "Windows":
+		elif platform.system() == "Windows":
 			self.ctags_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ctags.exe')
 		else:
 			print "you need to fix the generator.py from line 97 on in order to find the ctags executabe!"
