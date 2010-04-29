@@ -51,46 +51,6 @@ void registerObjects(AngelScript::asIScriptEngine *engine)
 		'Factory' : 'asBEHAVE_FACTORY', 
 		'AddRef' : 'asBEHAVE_ADDREF', 
 		'Release' : 'asBEHAVE_RELEASE', 
-		'Explicit value cast operator' : 'asBEHAVE_VALUE_CAST', 
-		'Implicit value cast operator' : 'asBEHAVE_IMPLICIT_VALUE_CAST', 
-		'operator []' : 'asBEHAVE_INDEX', 
-		'operator -' : 'asBEHAVE_NEGATE', 
-		'operator =' : 'asBEHAVE_ASSIGNMENT', 
-		'operator +=' : 'asBEHAVE_ADD_ASSIGN', 
-		'operator -=' : 'asBEHAVE_SUB_ASSIGN', 
-		'operator *=' : 'asBEHAVE_MUL_ASSIGN', 
-		'operator /=' : 'asBEHAVE_DIV_ASSIGN', 
-		#'operator =' : 'asBEHAVE_MOD_ASSIGN', 
-		'operator |=' : 'asBEHAVE_OR_ASSIGN', 
-		'operator &=' : 'asBEHAVE_AND_ASSIGN', 
-		'operator ^=' : 'asBEHAVE_XOR_ASSIGN', 
-		'operator <<=' : 'asBEHAVE_SLL_ASSIGN', 
-		'operator >>=' : 'asBEHAVE_SRL_ASSIGN', 
-		'operator >>>=' : 'asBEHAVE_SRA_ASSIGN', 
-		'operator +' : 'asBEHAVE_ADD', 
-		'operator -' : 'asBEHAVE_SUBTRACT', 
-		'operator *' : 'asBEHAVE_MULTIPLY', 
-		'operator /' : 'asBEHAVE_DIVIDE', 
-		'operator %' : 'asBEHAVE_MODULO', 
-		'operator ==' : 'asBEHAVE_EQUAL', 
-		'operator !=' : 'asBEHAVE_NOTEQUAL', 
-		'operator <' : 'asBEHAVE_LESSTHAN', 
-		'operator >' : 'asBEHAVE_GREATERTHAN', 
-		'operator <=' : 'asBEHAVE_LEQUAL', 
-		'operator >=' : 'asBEHAVE_GEQUAL', 
-		'operator |' : 'asBEHAVE_BIT_OR', 
-		'operator &' : 'asBEHAVE_BIT_AND', 
-		'operator ^' : 'asBEHAVE_BIT_XOR', 
-		'operator <<' : 'asBEHAVE_BIT_SLL', 
-		'operator >>' : 'asBEHAVE_BIT_SRL', 
-		'operator >>>' : 'asBEHAVE_BIT_SRA', 
-		'Explicit reference cast operator' : 'asBEHAVE_REF_CAST', 
-		'Implicit reference cast operator' : 'asBEHAVE_IMPLICIT_REF_CAST', 
-		'Get reference count' : 'asBEHAVE_GETREFCOUNT', 
-		'Set GC flag' : 'asBEHAVE_SETGCFLAG', 
-		'Get GC flag' : 'asBEHAVE_GETGCFLAG', 
-		'Enumerate held references' : 'asBEHAVE_ENUMREFS', 
-		'Release all references' : 'asBEHAVE_RELEASEREFS', 
 	}
 
 	def __init__(self):
@@ -141,13 +101,17 @@ void registerObjects(AngelScript::asIScriptEngine *engine)
 			str = str.replace(entry, classmap[entry])
 		return str
 
-	def _processSignatureASDecl(self, sig):
-		sig = sig.replace('const', '')
+	def _processSignatureASDecl(self, sig, cpp=False):
+		constReturn=False
 		sig = sig.strip(' ()')
-		
+		if sig[-5:] == "const":
+			sig = sig[:-5]
+			constReturn=True
+		sig = sig.strip(' ()')
 		entries = sig.split(',')
 		new_entries = []
 		for entry in entries:
+			#print entries
 			entry = entry.strip()
 			# by now we should have the variable name and the type
 			byRef = False
@@ -156,17 +120,26 @@ void registerObjects(AngelScript::asIScriptEngine *engine)
 				byRef = True
 			entry = entry.replace('&', '')
 			vartype = entry.strip().split(' ')[0]
+			if vartype == 'const':
+				vartype = 'const '+entry.strip().split(' ')[1]
+			
 			for tm in self.typemap.keys():
 				if vartype[:len(tm)] == tm:
 					vartype = vartype.replace(tm, self.typemap[tm])
 			newentry = ''
 			if byRef:
-				newentry = '%(vartype)s &in' % {'vartype':vartype}
+				if cpp:
+					newentry = '%(vartype)s &' % {'vartype':vartype}
+				else:
+					newentry = '%(vartype)s &in' % {'vartype':vartype}
 			else:
 				newentry = '%(vartype)s' % {'vartype':vartype}
 			#print '####', newentry
 			new_entries.append(newentry)
-		return '(%s)' % ', '.join(new_entries)
+		if constReturn:
+			return '(%s) const' % ', '.join(new_entries)
+		else:
+			return '(%s)' % ', '.join(new_entries)
 
 	def _handleKind(self, kinds, entry_type):
 		result=''
@@ -210,25 +183,14 @@ void registerObjects(AngelScript::asIScriptEngine *engine)
 				if 'class' in entry.extensions.keys():
 					clsname = entry.extensions['class']
 				#result += "//" + line.strip() + "\n"
-				if not static:
-					result += "r = engine->RegisterObjectProperty(\"%(shortclassname)s\", \"%(type)s %(name)s\", offsetof(%(classname)s, %(name)s)); assert(r>=0);\n" % \
-							{
-								'type':type,
-								'classname':clsname, 
-								'shortclassname':self.getShortClassName(clsname), 
-								'name':entry.name
-							}
-				else:
-					clsstr = entry.name
-					if clsname != '':
-						clsstr = clsname+'::'+entry.name
-					result += "r = engine->RegisterGlobalProperty(\"%(type)s %(name)s\", &%(clsstr)s); assert(r>=0);\n" % \
-							{
-								'type':type,
-								'clsstr':clsstr, 
-								'shortclassname':self.getShortClassName(clsname),
-								'name':entry.name
-							}
+				#if not static:
+				result += "r = engine->RegisterObjectProperty(\"%(shortclassname)s\", \"%(type)s %(name)s\", offsetof(%(classname)s, %(name)s)); assert(r>=0);\n" % \
+						{
+							'type':type,
+							'classname':clsname, 
+							'shortclassname':self.getShortClassName(clsname), 
+							'name':entry.name
+						}
 				#result += "\n"
 					
 
@@ -252,7 +214,7 @@ void registerObjects(AngelScript::asIScriptEngine *engine)
 					if entry.name == self.getShortClassName(entry.extensions['class']) or entry.name.find('~') != -1:
 						result += "// constructor/destructor: (FIX MANUALLY!) \n//"
 					
-					type = type.replace('const', '').strip()
+					#type = type.replace('const', '').strip()
 
 					# replace type with known type
 					for tm in self.typemap.keys():
@@ -264,13 +226,15 @@ void registerObjects(AngelScript::asIScriptEngine *engine)
 						
 					#print '1>>',entry.extensions['signature']
 					as_signature = self._processSignatureASDecl(entry.extensions['signature'])
-					result += "r = engine->RegisterObjectMethod(\"%(shortclassname)s\", \"%(type)s%(name)s%(signature)s\", asMETHODPR(%(classname)s,%(name)s, %(signature)s, %(type)s), asCALL_THISCALL); assert(r>=0);\n" % \
+					cpp_signature = self._processSignatureASDecl(entry.extensions['signature'], True)
+					result += "r = engine->RegisterObjectMethod(\"%(shortclassname)s\", \"%(type)s%(name)s%(as_signature)s\", asMETHODPR(%(classname)s,%(name)s, %(cpp_signature)s, %(type)s), asCALL_THISCALL); assert(r>=0);\n" % \
 							{
 								'type':type,
 								'classname':entry.extensions['class'], 
 								'shortclassname':self.getShortClassName(entry.extensions['class']),
 								'name':lname, 
-								'signature':as_signature
+								'as_signature':as_signature,
+								'cpp_signature':cpp_signature,
 							}
 					#result += "\n"
 				else:
@@ -284,6 +248,7 @@ void registerObjects(AngelScript::asIScriptEngine *engine)
 					if type[-1] == '&':
 						type = type[:-1]
 						lname = ' &' + lname.strip()
+					as_signature = self._processSignatureASDecl(entry.extensions['signature'])
 					result += "r = engine->RegisterObjectBehaviour(\"%(shortclassname)s\", %(behaviortype)s, \"%(type)s%(name)s%(signature)s\", asMETHODPR(%(classname)s,%(realname)s, %(signature)s, %(type)s), asCALL_THISCALL); assert(r>=0);\n" % \
 							{
 								'behaviortype':behaviortype,
@@ -292,7 +257,7 @@ void registerObjects(AngelScript::asIScriptEngine *engine)
 								'shortclassname':self.getShortClassName(entry.extensions['class']),
 								'name':lname, 
 								'realname':entry.name, 
-								'signature':self._processSignatureASDecl(entry.extensions['signature'])
+								'signature':as_signature
 							}
 					#result += "\n"
 					
